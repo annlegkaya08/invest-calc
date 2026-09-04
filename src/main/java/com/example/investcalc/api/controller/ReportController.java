@@ -1,11 +1,11 @@
 package com.example.investcalc.api.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.investcalc.api.dto.request.ReportRequest;
 import com.example.investcalc.api.dto.response.ReportResponse;
 import com.example.investcalc.repository.ReportMetadataRepository;
 import com.example.investcalc.repository.entity.ReportMetadata;
 import com.example.investcalc.service.OrchestratorService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -37,11 +37,9 @@ public class ReportController {
         ReportMetadata metadata = new ReportMetadata();
         metadata.setStatus(ReportMetadata.Status.PROCESSING);
         metadata.setRequestJson(objectMapper.writeValueAsString(request));
-        reportMetadataRepository.save(metadata);
+        metadata = reportMetadataRepository.save(metadata);
 
-        orchestratorService.generateReportAsync(metadata, request);
-
-        reportMetadataRepository.save(metadata);
+        orchestratorService.generateReportAsync(metadata.getReportId(), request);
 
         return new ReportResponse(
                 metadata.getReportId(),
@@ -60,7 +58,13 @@ public class ReportController {
                 ? "/api/v1/reports/" + reportId + "/download"
                 : null;
 
-        return new ReportResponse(m.getReportId(), m.getStatus().name(), downloadUrl, m.getCreatedAt());
+        return new ReportResponse(
+                m.getReportId(),
+                m.getStatus().name(),
+                downloadUrl,
+                m.getCreatedAt(),
+                m.getErrorMessage()
+        );
     }
 
     @GetMapping("/{reportId}/download")
@@ -74,7 +78,8 @@ public class ReportController {
 
         Resource resource = new FileSystemResource(Path.of(m.getFilePath()));
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + reportId + ".zip\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + reportId + ".zip\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
