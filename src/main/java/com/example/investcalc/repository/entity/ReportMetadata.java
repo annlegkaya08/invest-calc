@@ -21,7 +21,7 @@ public class ReportMetadata {
     private Status status = Status.PENDING;
 
     @Column(name = "file_path", length = 512)
-    private String filePath;               // путь к ZIP
+    private String filePath;
 
     @Column(name = "error_message", length = 1000)
     private String errorMessage;
@@ -32,13 +32,11 @@ public class ReportMetadata {
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    // request snapshot (можно хранить JSON)
     @Column(name = "request_json", columnDefinition = "TEXT")
     private String requestJson;
 
     public ReportMetadata() {}
 
-    // getters & setters
     public String getReportId() { return reportId; }
     public void setReportId(String reportId) { this.reportId = reportId; }
 
