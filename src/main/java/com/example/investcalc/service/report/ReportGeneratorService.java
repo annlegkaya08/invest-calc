@@ -31,29 +31,26 @@ public class ReportGeneratorService {
                            String backtestSummary,
                            String varSummary) throws IOException {
 
-        Path dir = Path.of(reportsDir);
+        Path dir = Path.of(reportsDir).toAbsolutePath();
         Files.createDirectories(dir);
+        log.info("Reports directory: {}", dir);
 
         Path pdfPath = dir.resolve(reportId + ".pdf");
         Path zipPath = dir.resolve(reportId + ".zip");
 
-        // 1. PDF
         createSimplePdf(pdfPath, reportId, request,
                 diversificationSummary, backtestSummary, varSummary);
 
-        // 2. ZIP
         try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
-            ZipEntry entry = new ZipEntry(reportId + ".pdf");
-            zos.putNextEntry(entry);
+            zos.putNextEntry(new ZipEntry(reportId + ".pdf"));
             Files.copy(pdfPath, zos);
             zos.closeEntry();
         }
 
-        // PDF можно удалить после упаковки, если не нужен отдельно
         Files.deleteIfExists(pdfPath);
 
-        log.info("Report ZIP created: {}", zipPath.toAbsolutePath());
-        return zipPath.toAbsolutePath().toString();
+        log.info("ZIP created: {}", zipPath);
+        return zipPath.toString();
     }
 
     private void createSimplePdf(Path pdfPath,
@@ -77,22 +74,22 @@ public class ReportGeneratorService {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), normalFont));
         document.add(Chunk.NEWLINE);
 
-        document.add(new Paragraph("Запрос", headingFont));
-        document.add(new Paragraph("Капитал: " + request.initialCapital(), normalFont));
-        document.add(new Paragraph("Стратегия: " + request.strategy(), normalFont));
-        document.add(new Paragraph("Период (лет): " + request.periodYears(), normalFont));
-        document.add(new Paragraph("Позиций: " + request.positions().size(), normalFont));
+        document.add(new Paragraph("Request", headingFont));
+        document.add(new Paragraph("Capital: " + request.initialCapital(), normalFont));
+        document.add(new Paragraph("Strategy: " + request.strategy(), normalFont));
+        document.add(new Paragraph("Period (years): " + request.periodYears(), normalFont));
+        document.add(new Paragraph("Positions: " + request.positions().size(), normalFont));
         document.add(Chunk.NEWLINE);
 
-        document.add(new Paragraph("1. Диверсификация", headingFont));
+        document.add(new Paragraph("1. Diversification", headingFont));
         document.add(new Paragraph(diversificationSummary, normalFont));
         document.add(Chunk.NEWLINE);
 
-        document.add(new Paragraph("2. Бэктест", headingFont));
+        document.add(new Paragraph("2. Backtest", headingFont));
         document.add(new Paragraph(backtestSummary, normalFont));
         document.add(Chunk.NEWLINE);
 
-        document.add(new Paragraph("3. Риск (VaR)", headingFont));
+        document.add(new Paragraph("3. Risk (VaR)", headingFont));
         document.add(new Paragraph(varSummary, normalFont));
 
         document.close();
