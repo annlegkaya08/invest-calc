@@ -3,6 +3,8 @@ package com.example.investcalc.service;
 import com.example.investcalc.api.dto.request.ReportRequest;
 import com.example.investcalc.repository.ReportMetadataRepository;
 import com.example.investcalc.repository.entity.ReportMetadata;
+import com.example.investcalc.service.diversification.calculator.PortfolioAnalyzer;
+import com.example.investcalc.service.diversification.model.DiversificationResult;
 import com.example.investcalc.service.report.ReportGeneratorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,11 +20,14 @@ public class OrchestratorService {
 
     private final ReportGeneratorService reportGeneratorService;
     private final ReportMetadataRepository reportMetadataRepository;
+    private final PortfolioAnalyzer portfolioAnalyzer;
 
     public OrchestratorService(ReportGeneratorService reportGeneratorService,
-                               ReportMetadataRepository reportMetadataRepository) {
+                               ReportMetadataRepository reportMetadataRepository,
+                               PortfolioAnalyzer portfolioAnalyzer) {
         this.reportGeneratorService = reportGeneratorService;
         this.reportMetadataRepository = reportMetadataRepository;
+        this.portfolioAnalyzer = portfolioAnalyzer;
     }
 
     @Async
@@ -36,9 +41,15 @@ public class OrchestratorService {
         }
 
         try {
-            String diversificationSummary = "Diversification: stub (sectors will be here)";
-            String backtestSummary = "Backtest: stub (returns and trades will be here)";
-            String varSummary = "VaR: stub (risk metrics will be here)";
+            // Модуль 14
+            DiversificationResult diversification = portfolioAnalyzer.analyze(request);
+            String diversificationSummary = diversification.getSummaryText();
+
+            // Модуль 11 (заглушка)
+            String backtestSummary = "Backtest: stub";
+
+            // Модуль 6 (заглушка)
+            String varSummary = "VaR: stub";
 
             String filePath = reportGeneratorService.generate(
                     reportId,
