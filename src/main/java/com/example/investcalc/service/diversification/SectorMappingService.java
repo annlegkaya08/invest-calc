@@ -27,31 +27,42 @@ public class SectorMappingService {
 
     @Transactional
     public String resolveSector(String ticker) {
-        String key = ticker.toUpperCase();
+        String key = ticker.toUpperCase().trim();
 
         Optional<TickerMetadata> fromDb = tickerMetadataRepository.findByTickerIgnoreCase(key);
-        if (fromDb.isPresent() && fromDb.get().getSector() != null
-                && !"UNKNOWN".equalsIgnoreCase(fromDb.get().getSector())) {
-            return fromDb.get().getSector();
+
+        // Берём из БД только если сектор нормальный
+        if (fromDb.isPresent()) {
+            String sector = fromDb.get().getSector();
+            if (sector != null && !sector.isBlank() && !"UNKNOWN".equalsIgnoreCase(sector)) {
+                return sector.toUpperCase();
+            }
         }
 
-        // fallback → API
+        //Fallback? Тогда API / Mock
         Optional<TickerMetadata> fromApi = marketDataProvider.getTickerMetadata(key);
         if (fromApi.isPresent()) {
             TickerMetadata meta = fromApi.get();
-            meta.setUpdatedAt(Instant.now());
-            tickerMetadataRepository.save(meta);
-            log.info("Sector for {} resolved via API: {}", key, meta.getSector());
-            return meta.getSector() != null ? meta.getSector() : "UNKNOWN";
+            String sector = meta.getSector() != null ? meta.getSector().toUpperCase() : "UNKNOWN";
+
+            TickerMetadata toSave = fromDb.orElseGet(() -> {
+                TickerMetadata m = new TickerMetadata();
+                m.setTicker(key);
+                return m;
+            });
+            toSave.setName(meta.getName() != null ? meta.getName() : key);
+            toSave.setSector(sector);
+            toSave.setCurrency(meta.getCurrency() != null ? meta.getCurrency() : "RUB");
+            toSave.setBoard(meta.getBoard() != null ? meta.getBoard() : "TQBR");
+            toSave.setIsin(meta.getIsin());
+            toSave.setUpdatedAt(Instant.now());
+            tickerMetadataRepository.save(toSave);
+
+            log.info("Sector resolved for {}: {}", key, sector);
+            return sector;
         }
 
-        log.warn("Sector for {} not found, using UNKNOWN", key);
+        log.warn("Sector NOT found for {}, using UNKNOWN. Check marketdata.provider and ticker list.", key);
         return "UNKNOWN";
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<TickerMetadata> getMetadata(String ticker) {
-        return tickerMetadataRepository.findByTickerIgnoreCase(ticker.toUpperCase())
-                .or(() -> marketDataProvider.getTickerMetadata(ticker.toUpperCase()));
     }
 }
