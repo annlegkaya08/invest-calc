@@ -17,16 +17,16 @@ import java.util.stream.Collectors;
 public class MockDataProvider implements MarketDataProvider {
 
     private static final Map<String, TickerMetadata> META = Map.of(
-            "SBER", new TickerMetadata("SBER", "Сбербанк", "FINANCE"),
-            "GAZP", new TickerMetadata("GAZP", "Газпром", "OIL_GAS"),
-            "LKOH", new TickerMetadata("LKOH", "Лукойл", "OIL_GAS"),
-            "YNDX", new TickerMetadata("YNDX", "Яндекс", "IT"),
-            "GMKN", new TickerMetadata("GMKN", "Норникель", "METALS"),
-            "ROSN", new TickerMetadata("ROSN", "Роснефть", "OIL_GAS"),
-            "VTBR", new TickerMetadata("VTBR", "ВТБ", "FINANCE"),
-            "MGNT", new TickerMetadata("MGNT", "Магнит", "RETAIL"),
-            "ALRS", new TickerMetadata("ALRS", "АЛРОСА", "METALS"),
-            "TATN", new TickerMetadata("TATN", "Татнефть", "OIL_GAS")
+            "SBER", new TickerMetadata("SBER", "Sberbank", "FINANCE"),
+            "GAZP", new TickerMetadata("GAZP", "Gazprom", "OIL_GAS"),
+            "LKOH", new TickerMetadata("LKOH", "Lukoil", "OIL_GAS"),
+            "YNDX", new TickerMetadata("YNDX", "Yandex", "IT"),
+            "GMKN", new TickerMetadata("GMKN", "Nornickel", "METALS"),
+            "ROSN", new TickerMetadata("ROSN", "Rosneft", "OIL_GAS"),
+            "VTBR", new TickerMetadata("VTBR", "VTB", "FINANCE"),
+            "MGNT", new TickerMetadata("MGNT", "Magnit", "RETAIL"),
+            "ALRS", new TickerMetadata("ALRS", "Alrosa", "METALS"),
+            "TATN", new TickerMetadata("TATN", "Tatneft", "OIL_GAS")
     );
 
     @Override
