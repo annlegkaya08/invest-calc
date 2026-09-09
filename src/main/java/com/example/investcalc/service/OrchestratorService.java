@@ -6,6 +6,10 @@ import com.example.investcalc.repository.entity.ReportMetadata;
 import com.example.investcalc.service.diversification.calculator.PortfolioAnalyzer;
 import com.example.investcalc.service.diversification.model.DiversificationResult;
 import com.example.investcalc.service.report.ReportGeneratorService;
+
+import com.example.investcalc.service.backtesting.BacktestingEngine;
+import com.example.investcalc.service.backtesting.model.BacktestResult;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -21,13 +25,16 @@ public class OrchestratorService {
     private final ReportGeneratorService reportGeneratorService;
     private final ReportMetadataRepository reportMetadataRepository;
     private final PortfolioAnalyzer portfolioAnalyzer;
+    private final BacktestingEngine backtestingEngine;
 
     public OrchestratorService(ReportGeneratorService reportGeneratorService,
                                ReportMetadataRepository reportMetadataRepository,
-                               PortfolioAnalyzer portfolioAnalyzer) {
+                               PortfolioAnalyzer portfolioAnalyzer,
+                               BacktestingEngine backtestingEngine) {
         this.reportGeneratorService = reportGeneratorService;
         this.reportMetadataRepository = reportMetadataRepository;
         this.portfolioAnalyzer = portfolioAnalyzer;
+        this.backtestingEngine = backtestingEngine;
     }
 
     @Async
@@ -41,15 +48,16 @@ public class OrchestratorService {
         }
 
         try {
-            // Модуль 14
+            //14
             DiversificationResult diversification = portfolioAnalyzer.analyze(request);
             String diversificationSummary = diversification.getSummaryText();
 
-            // Модуль 11 (заглушка)
-            String backtestSummary = "Backtest: stub";
+            //11
+            BacktestResult backtest = backtestingEngine.run(request);
+            String backtestSummary = backtest.getSummaryText();
 
-            // Модуль 6 (заглушка)
-            String varSummary = "VaR: stub";
+            //6
+            String varSummary = "VaR: stub (risk metrics will be here)";
 
             String filePath = reportGeneratorService.generate(
                     reportId,
@@ -69,11 +77,8 @@ public class OrchestratorService {
 
         } catch (Exception e) {
             log.error(">>> Report {} FAILED", reportId, e);
-
             String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
-            if (msg.length() > 900) {
-                msg = msg.substring(0, 900);
-            }
+            if (msg.length() > 900) msg = msg.substring(0, 900);
 
             metadata.setStatus(ReportMetadata.Status.FAILED);
             metadata.setErrorMessage(msg);
