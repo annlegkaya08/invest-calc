@@ -3,12 +3,16 @@ package com.example.investcalc.service;
 import com.example.investcalc.api.dto.request.ReportRequest;
 import com.example.investcalc.repository.ReportMetadataRepository;
 import com.example.investcalc.repository.entity.ReportMetadata;
+import com.example.investcalc.service.backtesting.BacktestingEngine;
+import com.example.investcalc.service.backtesting.model.BacktestResult;
 import com.example.investcalc.service.diversification.calculator.PortfolioAnalyzer;
+
 import com.example.investcalc.service.diversification.model.DiversificationResult;
 import com.example.investcalc.service.report.ReportGeneratorService;
 
-import com.example.investcalc.service.backtesting.BacktestingEngine;
-import com.example.investcalc.service.backtesting.model.BacktestResult;
+import com.example.investcalc.service.risk.VaRCalculator;
+import com.example.investcalc.service.risk.model.VaRResult;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,15 +30,18 @@ public class OrchestratorService {
     private final ReportMetadataRepository reportMetadataRepository;
     private final PortfolioAnalyzer portfolioAnalyzer;
     private final BacktestingEngine backtestingEngine;
+    private final VaRCalculator vaRCalculator;
 
     public OrchestratorService(ReportGeneratorService reportGeneratorService,
                                ReportMetadataRepository reportMetadataRepository,
                                PortfolioAnalyzer portfolioAnalyzer,
-                               BacktestingEngine backtestingEngine) {
+                               BacktestingEngine backtestingEngine,
+                               VaRCalculator vaRCalculator) {
         this.reportGeneratorService = reportGeneratorService;
         this.reportMetadataRepository = reportMetadataRepository;
         this.portfolioAnalyzer = portfolioAnalyzer;
         this.backtestingEngine = backtestingEngine;
+        this.vaRCalculator = vaRCalculator;
     }
 
     @Async
@@ -48,16 +55,17 @@ public class OrchestratorService {
         }
 
         try {
-            //14
+            // Module 14 — Diversification
             DiversificationResult diversification = portfolioAnalyzer.analyze(request);
             String diversificationSummary = diversification.getSummaryText();
 
-            //11
+            // Module 11 — Backtest
             BacktestResult backtest = backtestingEngine.run(request);
             String backtestSummary = backtest.getSummaryText();
 
-            //6
-            String varSummary = "VaR: stub (risk metrics will be here)";
+            // Module 6 — VaR
+            VaRResult varResult = vaRCalculator.calculate(request);
+            String varSummary = varResult.getSummaryText();
 
             String filePath = reportGeneratorService.generate(
                     reportId,
