@@ -7,6 +7,8 @@ import com.example.investcalc.repository.entity.Candle;
 import com.example.investcalc.service.backtesting.cost.TransactionCostModel;
 import com.example.investcalc.service.backtesting.model.BacktestResult;
 import com.example.investcalc.service.backtesting.strategy.EquityPoint;
+import com.example.investcalc.util.BigDecimalUtils;
+import com.example.investcalc.util.DateUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -39,8 +41,8 @@ public class BacktestingEngine {
 
     public BacktestResult run(ReportRequest request) {
         TradingStrategy strategy = strategyFactory.create(request.strategy());
-        LocalDate to = LocalDate.now();
-        LocalDate from = to.minusYears(request.periodYears());
+        LocalDate to = DateUtils.today();
+        LocalDate from = DateUtils.periodStart(request.periodYears());
 
         BigDecimal initialCapital = request.initialCapital();
 
@@ -140,15 +142,15 @@ public class BacktestingEngine {
             }
 
             BigDecimal equity = calcEquity(cash, holdings, candlesByTicker, idx);
-            result.addEquityPoint(new EquityPoint(date, equity.setScale(2, RoundingMode.HALF_UP)));
+            result.addEquityPoint(new EquityPoint(date, BigDecimalUtils.toMoney(equity)));
         }
 
         int lastIdxFallback = 0;
         BigDecimal finalEquity = calcEquity(cash, holdings, candlesByTicker, idx);
 
-        result.setFinalCapital(finalEquity.setScale(2, RoundingMode.HALF_UP));
+        result.setFinalCapital(BigDecimalUtils.toMoney(finalEquity));
         result.setTotalTrades(allTrades.size());
-        result.setTotalCommission(totalCommission.setScale(2, RoundingMode.HALF_UP));
+        result.setTotalCommission(BigDecimalUtils.toMoney(totalCommission));
         result.getTrades().addAll(allTrades);
         result.computeReturn();
         result.setSummaryText(buildSummary(result, strategy.getName()));

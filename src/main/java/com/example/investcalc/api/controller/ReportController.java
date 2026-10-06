@@ -5,6 +5,8 @@ import com.example.investcalc.api.dto.request.ReportRequest;
 import com.example.investcalc.api.dto.response.ReportResponse;
 import com.example.investcalc.repository.ReportMetadataRepository;
 import com.example.investcalc.repository.entity.ReportMetadata;
+import com.example.investcalc.exception.ReportNotFoundException;
+import com.example.investcalc.exception.ReportNotReadyException;
 import com.example.investcalc.service.OrchestratorService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
@@ -52,7 +54,7 @@ public class ReportController {
     @GetMapping("/{reportId}")
     public ReportResponse status(@PathVariable String reportId) {
         ReportMetadata m = reportMetadataRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found: " + reportId));
+                .orElseThrow(() -> new ReportNotFoundException(reportId));
 
         String downloadUrl = m.getStatus() == ReportMetadata.Status.COMPLETED
                 ? "/api/v1/reports/" + reportId + "/download"
@@ -70,10 +72,10 @@ public class ReportController {
     @GetMapping("/{reportId}/download")
     public ResponseEntity<Resource> download(@PathVariable String reportId) {
         ReportMetadata m = reportMetadataRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found: " + reportId));
+                .orElseThrow(() -> new ReportNotFoundException(reportId));
 
         if (m.getStatus() != ReportMetadata.Status.COMPLETED || m.getFilePath() == null) {
-            return ResponseEntity.badRequest().build();
+            throw new ReportNotReadyException(reportId, m.getStatus().name());
         }
 
         Resource resource = new FileSystemResource(Path.of(m.getFilePath()));

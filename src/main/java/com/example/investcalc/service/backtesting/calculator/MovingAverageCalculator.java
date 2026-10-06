@@ -1,7 +1,7 @@
 package com.example.investcalc.service.backtesting.calculator;
 
+import com.example.investcalc.util.BigDecimalUtils;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +23,7 @@ public final class MovingAverageCalculator {
                 sum = sum.subtract(prices.get(i - period));
             }
             if (i >= period - 1) {
-                result.add(sum.divide(BigDecimal.valueOf(period), 6, RoundingMode.HALF_UP));
+                result.add(BigDecimalUtils.divide(sum, BigDecimal.valueOf(period), BigDecimalUtils.RATIO_SCALE));
             } else {
                 result.add(null);
             }

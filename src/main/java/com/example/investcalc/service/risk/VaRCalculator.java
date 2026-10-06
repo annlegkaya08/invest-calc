@@ -8,6 +8,9 @@ import com.example.investcalc.repository.entity.Candle;
 import com.example.investcalc.service.risk.method.HistoricalVaR;
 import com.example.investcalc.service.risk.method.ParametricVaR;
 import com.example.investcalc.service.risk.model.VaRResult;
+import com.example.investcalc.util.BigDecimalUtils;
+import com.example.investcalc.util.DateUtils;
+import com.example.investcalc.util.PercentageUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +50,8 @@ public class VaRCalculator {
                                BigDecimal confidenceLevel,
                                int horizonDays) {
 
-        LocalDate to = LocalDate.now();
-        LocalDate from = to.minusYears(request.periodYears());
+        LocalDate to = DateUtils.today();
+        LocalDate from = DateUtils.periodStart(request.periodYears());
         BigDecimal portfolioValue = request.initialCapital();
 
         List<BigDecimal> portfolioReturns = buildPortfolioReturns(request, from, to);
@@ -76,10 +79,10 @@ public class VaRCalculator {
             hESpct = hESpct.multiply(scale);
         }
 
-        result.setHistoricalVaRPct(hVaRpct.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
-        result.setHistoricalESPct(hESpct.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
-        result.setHistoricalVaR(portfolioValue.multiply(hVaRpct).setScale(2, RoundingMode.HALF_UP));
-        result.setHistoricalES(portfolioValue.multiply(hESpct).setScale(2, RoundingMode.HALF_UP));
+        result.setHistoricalVaRPct(PercentageUtils.fractionToPercent(hVaRpct));
+        result.setHistoricalESPct(PercentageUtils.fractionToPercent(hESpct));
+        result.setHistoricalVaR(BigDecimalUtils.toMoney(portfolioValue.multiply(hVaRpct)));
+        result.setHistoricalES(BigDecimalUtils.toMoney(portfolioValue.multiply(hESpct)));
 
         // --- Parametric ---
         BigDecimal pVaRpct = parametricVaR.calculateVaR(portfolioReturns, confidenceLevel);
@@ -91,10 +94,10 @@ public class VaRCalculator {
             pESpct = pESpct.multiply(scale);
         }
 
-        result.setParametricVaRPct(pVaRpct.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
-        result.setParametricESPct(pESpct.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP));
-        result.setParametricVaR(portfolioValue.multiply(pVaRpct).setScale(2, RoundingMode.HALF_UP));
-        result.setParametricES(portfolioValue.multiply(pESpct).setScale(2, RoundingMode.HALF_UP));
+        result.setParametricVaRPct(PercentageUtils.fractionToPercent(pVaRpct));
+        result.setParametricESPct(PercentageUtils.fractionToPercent(pESpct));
+        result.setParametricVaR(BigDecimalUtils.toMoney(portfolioValue.multiply(pVaRpct)));
+        result.setParametricES(BigDecimalUtils.toMoney(portfolioValue.multiply(pESpct)));
 
         result.setSummaryText(buildSummary(result));
         log.info("VaR done: hist={} ({}%), param={} ({}%), n={}",
@@ -140,8 +143,7 @@ public class VaRCalculator {
                 BigDecimal prev = candles.get(i - 1).getClose();
                 BigDecimal curr = candles.get(i).getClose();
                 if (prev.compareTo(BigDecimal.ZERO) == 0) continue;
-                BigDecimal r = curr.subtract(prev)
-                        .divide(prev, 8, RoundingMode.HALF_UP);
+                BigDecimal r = BigDecimalUtils.divide(curr.subtract(prev), prev, BigDecimalUtils.CALC_SCALE);
                 LocalDate d = candles.get(i).getDate();
                 ret.put(d, r);
                 allDates.add(d);
@@ -166,7 +168,7 @@ public class VaRCalculator {
             // нормализуем, если в этот день не все тикеры торговались
             if (weightUsed.compareTo(BigDecimal.ZERO) > 0
                     && weightUsed.subtract(BigDecimal.ONE).abs().compareTo(new BigDecimal("0.01")) > 0) {
-                rp = rp.divide(weightUsed, 8, RoundingMode.HALF_UP);
+                rp = BigDecimalUtils.divide(rp, weightUsed, BigDecimalUtils.CALC_SCALE);
             }
 
             if (weightUsed.compareTo(BigDecimal.ZERO) > 0) {

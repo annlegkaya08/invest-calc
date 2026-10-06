@@ -1,7 +1,6 @@
 package com.example.investcalc.service.risk.model;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 public class VaRResult {
 
@@ -65,13 +64,4 @@ public class VaRResult {
 
     public String getSummaryText() { return summaryText; }
     public void setSummaryText(String v) { this.summaryText = v; }
-
-    public static BigDecimal pct(BigDecimal amount, BigDecimal base) {
-        if (base == null || base.compareTo(BigDecimal.ZERO) == 0) {
-            return BigDecimal.ZERO;
-        }
-        return amount.divide(base, 8, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(100))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
 }

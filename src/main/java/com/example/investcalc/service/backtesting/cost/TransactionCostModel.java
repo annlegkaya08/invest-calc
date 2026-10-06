@@ -1,7 +1,9 @@
 package com.example.investcalc.service.backtesting.cost;
 
+import com.example.investcalc.util.BigDecimalUtils;
+import com.example.investcalc.util.PercentageUtils;
+
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 public class TransactionCostModel {
     private final BigDecimal commissionRate;
@@ -11,13 +13,11 @@ public class TransactionCostModel {
     }
 
     public static TransactionCostModel ofPercent(double percent) {
-        return new TransactionCostModel(
-                BigDecimal.valueOf(percent).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)
-        );
+        return new TransactionCostModel(PercentageUtils.percentToFraction(BigDecimal.valueOf(percent)));
     }
 
     public BigDecimal calculate(BigDecimal tradeAmount) {
-        return tradeAmount.multiply(commissionRate).setScale(2, RoundingMode.HALF_UP);
+        return BigDecimalUtils.toMoney(tradeAmount.multiply(commissionRate));
     }
     public BigDecimal getCommissionRate() {
         return commissionRate;

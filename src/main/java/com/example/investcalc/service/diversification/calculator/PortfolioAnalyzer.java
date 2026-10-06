@@ -6,12 +6,13 @@ import com.example.investcalc.service.diversification.SectorMappingService;
 import com.example.investcalc.service.diversification.model.*;
 import com.example.investcalc.service.portfolio.model.Portfolio;
 import com.example.investcalc.service.portfolio.model.WeightedPosition;
+import com.example.investcalc.util.BigDecimalUtils;
+import com.example.investcalc.util.PercentageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -97,7 +98,7 @@ public class PortfolioAnalyzer {
         for (BigDecimal w : sectorWeights.values()) {
             hhi = hhi.add(w.multiply(w));
         }
-        return hhi.setScale(4, RoundingMode.HALF_UP);
+        return BigDecimalUtils.toWeight(hhi);
     }
 
     private String resolveConcentrationLevel(BigDecimal hhi) {
@@ -132,8 +133,8 @@ public class PortfolioAnalyzer {
                 result.addRecommendation(RebalanceRecommendation.warning(
                         String.format("Sector %s is %.1f%% of portfolio. Suggested max is %.0f%%.",
                                 e.getKey(),
-                                e.getValue().multiply(BigDecimal.valueOf(100)).doubleValue(),
-                                MAX_SECTOR_WEIGHT.multiply(BigDecimal.valueOf(100)).doubleValue()),
+                                PercentageUtils.fractionToPercentDouble(e.getValue()),
+                                PercentageUtils.fractionToPercentDouble(MAX_SECTOR_WEIGHT)),
                         e.getKey(),
                         e.getValue(),
                         MAX_SECTOR_WEIGHT
@@ -151,7 +152,7 @@ public class PortfolioAnalyzer {
         BigDecimal total = portfolio.totalWeight();
         if (total.subtract(BigDecimal.ONE).abs().compareTo(new BigDecimal("0.02")) > 0) {
             result.addRecommendation(RebalanceRecommendation.warning(
-                    "Sum of weights = " + total.setScale(4, RoundingMode.HALF_UP) + " (expected ≈ 1.0).",
+                    "Sum of weights = " + BigDecimalUtils.toWeight(total) + " (expected ≈ 1.0).",
                     null, total, BigDecimal.ONE
             ));
         }

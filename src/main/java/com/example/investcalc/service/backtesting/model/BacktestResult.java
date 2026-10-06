@@ -1,9 +1,9 @@
 package com.example.investcalc.service.backtesting.model;
 
 import com.example.investcalc.service.backtesting.strategy.EquityPoint;
+import com.example.investcalc.util.PercentageUtils;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,10 +45,7 @@ public class BacktestResult {
     public void computeReturn() {
         if (initialCapital != null && finalCapital != null
                 && initialCapital.compareTo(BigDecimal.ZERO) > 0) {
-            totalReturnPct = finalCapital.subtract(initialCapital)
-                    .divide(initialCapital, 6, RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100))
-                    .setScale(2, RoundingMode.HALF_UP);
+            totalReturnPct = PercentageUtils.changePercent(initialCapital, finalCapital);
         }
     }
 }

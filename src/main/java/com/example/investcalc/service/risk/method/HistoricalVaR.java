@@ -1,10 +1,10 @@
 package com.example.investcalc.service.risk.method;
 
+import com.example.investcalc.util.BigDecimalUtils;
 import org.springframework.stereotype.Component;
 
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +26,7 @@ public class HistoricalVaR implements VaRMethod {
         index = Math.max(0, Math.min(index, sorted.size() - 1));
 
         BigDecimal quantile = sorted.get(index);
-        return quantile.negate().max(BigDecimal.ZERO).setScale(6, RoundingMode.HALF_UP);
+        return BigDecimalUtils.toRatio(quantile.negate().max(BigDecimal.ZERO));
     }
 
 
@@ -46,7 +46,7 @@ public class HistoricalVaR implements VaRMethod {
         for (int i = 0; i < count; i++) {
             sum = sum.add(sorted.get(i));
         }
-        BigDecimal avg = sum.divide(BigDecimal.valueOf(count), 8, RoundingMode.HALF_UP);
-        return avg.negate().max(BigDecimal.ZERO).setScale(6, RoundingMode.HALF_UP);
+        BigDecimal avg = BigDecimalUtils.divide(sum, BigDecimal.valueOf(count), BigDecimalUtils.CALC_SCALE);
+        return BigDecimalUtils.toRatio(avg.negate().max(BigDecimal.ZERO));
     }
 }

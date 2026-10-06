@@ -1,7 +1,9 @@
 package com.example.investcalc.service.diversification.model;
 
+import com.example.investcalc.util.BigDecimalUtils;
+import com.example.investcalc.util.PercentageUtils;
+
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 public class SectorAllocation {
 
@@ -11,7 +13,7 @@ public class SectorAllocation {
 
     public SectorAllocation(String sector, BigDecimal weight, int positionCount) {
         this.sector = sector;
-        this.weight = weight.setScale(4, RoundingMode.HALF_UP);
+        this.weight = BigDecimalUtils.toWeight(weight);
         this.positionCount = positionCount;
     }
 
@@ -28,6 +30,6 @@ public class SectorAllocation {
     }
 
     public BigDecimal getWeightPercent() {
-        return weight.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
+        return PercentageUtils.fractionToPercent(weight);
     }
 }

@@ -1,5 +1,6 @@
 package com.example.investcalc.service.risk.method;
 
+import com.example.investcalc.util.BigDecimalUtils;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -32,7 +33,7 @@ public class ParametricVaR implements VaRMethod {
         // VaR ≈ -(μ - z*σ)  при μ≈0 часто берут z*σ
         // Классика: VaR = z * σ - μ  (если смотрим на потери)
         double var = z * stats.std - stats.mean;
-        return BigDecimal.valueOf(Math.max(0, var)).setScale(6, RoundingMode.HALF_UP);
+        return BigDecimalUtils.toRatio(BigDecimal.valueOf(Math.max(0, var)));
     }
 
     @Override
@@ -48,7 +49,7 @@ public class ParametricVaR implements VaRMethod {
         // Для нормального: ES = σ * φ(z) / α - μ
         double phi = normalPdf(z);
         double es = stats.std * (phi / alpha) - stats.mean;
-        return BigDecimal.valueOf(Math.max(0, es)).setScale(6, RoundingMode.HALF_UP);
+        return BigDecimalUtils.toRatio(BigDecimal.valueOf(Math.max(0, es)));
     }
 
     private Stats stats(List<BigDecimal> returns) {

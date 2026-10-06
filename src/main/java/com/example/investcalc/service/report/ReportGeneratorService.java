@@ -1,6 +1,7 @@
 package com.example.investcalc.service.report;
 
 import com.example.investcalc.api.dto.request.ReportRequest;
+import com.example.investcalc.util.FileUtils;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfWriter;
 import org.slf4j.Logger;
@@ -31,12 +32,11 @@ public class ReportGeneratorService {
                            String backtestSummary,
                            String varSummary) throws IOException {
 
-        Path dir = Path.of(reportsDir).toAbsolutePath();
-        Files.createDirectories(dir);
+        Path dir = FileUtils.ensureDirectory(reportsDir);
         log.info("Reports directory: {}", dir);
 
-        Path pdfPath = dir.resolve(reportId + ".pdf");
-        Path zipPath = dir.resolve(reportId + ".zip");
+        Path pdfPath = FileUtils.safeResolve(dir, reportId + ".pdf");
+        Path zipPath = FileUtils.safeResolve(dir, reportId + ".zip");
 
         createSimplePdf(pdfPath, reportId, request,
                 diversificationSummary, backtestSummary, varSummary);
@@ -47,7 +47,7 @@ public class ReportGeneratorService {
             zos.closeEntry();
         }
 
-        Files.deleteIfExists(pdfPath);
+        FileUtils.deleteQuietly(pdfPath);
 
         log.info("ZIP created: {}", zipPath);
         return zipPath.toString();
