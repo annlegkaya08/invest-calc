@@ -13,9 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,13 +24,15 @@ public class PortfolioAnalyzer {
     private static final Logger log = LoggerFactory.getLogger(PortfolioAnalyzer.class);
 
     private static final BigDecimal MAX_SECTOR_WEIGHT = new BigDecimal("0.40");
-    private static final BigDecimal HHI_LOW = new BigDecimal("0.15");
-    private static final BigDecimal HHI_HIGH = new BigDecimal("0.25");
+    private static final MathContext MC = new MathContext(12, RoundingMode.HALF_UP);
 
     private final SectorMappingService sectorMappingService;
+    private final ConcentrationCalculator concentrationCalculator;
 
-    public PortfolioAnalyzer(SectorMappingService sectorMappingService) {
+    public PortfolioAnalyzer(SectorMappingService sectorMappingService,
+                             ConcentrationCalculator concentrationCalculator) {
         this.sectorMappingService = sectorMappingService;
+        this.concentrationCalculator = concentrationCalculator;
     }
 
     public DiversificationResult analyze(ReportRequest request) {
@@ -42,7 +44,7 @@ public class PortfolioAnalyzer {
         Map<String, BigDecimal> sectorWeights = calcSectorWeights(portfolio);
         Map<String, Long> sectorCounts = portfolio.getPositions().stream()
                 .collect(Collectors.groupingBy(
-                        p -> p.getSector() != null ? p.getSector() : "UNKNOWN",
+                        p -> normalizeSector(p.getSector()),
                         Collectors.counting()
                 ));
 
@@ -55,15 +57,22 @@ public class PortfolioAnalyzer {
                 Comparator.comparing(SectorAllocation::getWeight).reversed()
         );
 
-        BigDecimal hhi = calcHhi(sectorWeights);
+        BigDecimal hhi = concentrationCalculator.hhi(sectorWeights);
         result.setHhi(hhi);
-        result.setConcentrationLevel(resolveConcentrationLevel(hhi));
+        result.setEffectiveSectorCount(concentrationCalculator.effectiveNumberOfSectors(hhi));
+        result.setTop1Share(concentrationCalculator.topNShare(sectorWeights, 1));
+        result.setTop3Share(concentrationCalculator.topNShare(sectorWeights, 3));
+        result.setConcentrationLevel(concentrationCalculator.concentrationLevel(hhi));
 
-        buildRecommendations(result, sectorWeights, hhi, portfolio);
+        Map<String, BigDecimal> suggested = computeSuggestedWeights(portfolio, sectorWeights);
+        result.setSuggestedWeights(suggested);
+
+        buildRecommendations(result, sectorWeights, hhi, portfolio, suggested);
         result.setSummaryText(buildSummaryText(result));
 
-        log.info("Diversification done: HHI={}, level={}, sectors={}",
-                hhi, result.getConcentrationLevel(), sectorWeights.size());
+        log.info("Diversification done: HHI={}, effectiveN={}, level={}, sectors={}",
+                hhi, result.getEffectiveSectorCount(),
+                result.getConcentrationLevel(), sectorWeights.size());
 
         return result;
     }
@@ -76,68 +85,147 @@ public class PortfolioAnalyzer {
         return portfolio;
     }
 
-    //временный лог
     private void enrichWithSectors(Portfolio portfolio) {
         for (WeightedPosition pos : portfolio.getPositions()) {
-            String sector = sectorMappingService.resolveSector(pos.getTicker());
+            String raw = sectorMappingService.resolveSector(pos.getTicker());
+            String sector = Sector.fromCode(raw).code();
             pos.setSector(sector);
             log.info("Ticker {} → sector {}", pos.getTicker(), sector);
         }
     }
+
+    private static String normalizeSector(String sector) {
+        return Sector.fromCode(sector).code();
+    }
+
     private Map<String, BigDecimal> calcSectorWeights(Portfolio portfolio) {
         Map<String, BigDecimal> map = new LinkedHashMap<>();
         for (WeightedPosition pos : portfolio.getPositions()) {
-            String sector = pos.getSector() != null ? pos.getSector() : "UNKNOWN";
+            String sector = normalizeSector(pos.getSector());
             map.merge(sector, pos.getWeight(), BigDecimal::add);
         }
         return map;
     }
 
-    private BigDecimal calcHhi(Map<String, BigDecimal> sectorWeights) {
-        BigDecimal hhi = BigDecimal.ZERO;
-        for (BigDecimal w : sectorWeights.values()) {
-            hhi = hhi.add(w.multiply(w));
+    Map<String, BigDecimal> computeSuggestedWeights(Portfolio portfolio,
+                                                    Map<String, BigDecimal> sectorWeights) {
+        List<WeightedPosition> positions = portfolio.getPositions();
+        if (positions.isEmpty()) {
+            return Map.of();
         }
-        return BigDecimalUtils.toWeight(hhi);
-    }
 
-    private String resolveConcentrationLevel(BigDecimal hhi) {
-        if (hhi.compareTo(HHI_LOW) < 0) return "LOW";
-        if (hhi.compareTo(HHI_HIGH) <= 0) return "MEDIUM";
-        return "HIGH";
+        // Start from current ticker weights
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        Map<String, String> tickerSector = new LinkedHashMap<>();
+        for (WeightedPosition p : positions) {
+            weights.put(p.getTicker(), p.getWeight());
+            tickerSector.put(p.getTicker(), normalizeSector(p.getSector()));
+        }
+
+        BigDecimal excess = BigDecimal.ZERO;
+        Set<String> cappedSectors = new HashSet<>();
+
+        for (Map.Entry<String, BigDecimal> e : sectorWeights.entrySet()) {
+            if (e.getValue().compareTo(MAX_SECTOR_WEIGHT) > 0) {
+                cappedSectors.add(e.getKey());
+                BigDecimal sectorW = e.getValue();
+                BigDecimal scale = BigDecimalUtils.safeDivide(MAX_SECTOR_WEIGHT, sectorW, BigDecimalUtils.CALC_SCALE);
+                BigDecimal reduced = BigDecimal.ZERO;
+                for (Map.Entry<String, BigDecimal> tw : weights.entrySet()) {
+                    if (e.getKey().equals(tickerSector.get(tw.getKey()))) {
+                        BigDecimal newW = tw.getValue().multiply(scale, MC);
+                        excess = excess.add(tw.getValue().subtract(newW), MC);
+                        weights.put(tw.getKey(), newW);
+                        reduced = reduced.add(newW, MC);
+                    }
+                }
+            }
+        }
+
+        if (excess.signum() > 0) {
+            BigDecimal freeTotal = BigDecimal.ZERO;
+            for (Map.Entry<String, BigDecimal> tw : weights.entrySet()) {
+                if (!cappedSectors.contains(tickerSector.get(tw.getKey()))) {
+                    freeTotal = freeTotal.add(tw.getValue(), MC);
+                }
+            }
+            if (freeTotal.signum() > 0) {
+                for (Map.Entry<String, BigDecimal> tw : weights.entrySet()) {
+                    if (!cappedSectors.contains(tickerSector.get(tw.getKey()))) {
+                        BigDecimal share = BigDecimalUtils.safeDivide(tw.getValue(), freeTotal, BigDecimalUtils.CALC_SCALE);
+                        weights.put(tw.getKey(), tw.getValue().add(excess.multiply(share, MC), MC));
+                    }
+                }
+            } else {
+                BigDecimal perTicker = BigDecimalUtils.safeDivide(
+                        excess, BigDecimal.valueOf(weights.size()), BigDecimalUtils.CALC_SCALE);
+                weights.replaceAll((t, w) -> w.add(perTicker, MC));
+            }
+        }
+
+        BigDecimal sum = BigDecimalUtils.sum(weights.values());
+        if (sum.signum() > 0) {
+            Map<String, BigDecimal> normalized = new LinkedHashMap<>();
+            for (Map.Entry<String, BigDecimal> e : weights.entrySet()) {
+                normalized.put(e.getKey(),
+                        BigDecimalUtils.toWeight(BigDecimalUtils.safeDivide(e.getValue(), sum, BigDecimalUtils.CALC_SCALE)));
+            }
+            BigDecimal normSum = BigDecimalUtils.sum(normalized.values());
+            if (normSum.compareTo(BigDecimal.ONE) != 0 && !normalized.isEmpty()) {
+                String last = normalized.keySet().stream().reduce((a, b) -> b).orElse(null);
+                if (last != null) {
+                    BigDecimal diff = BigDecimal.ONE.subtract(normSum);
+                    normalized.put(last, BigDecimalUtils.toWeight(normalized.get(last).add(diff)));
+                }
+            }
+            return normalized;
+        }
+
+        BigDecimal eq = BigDecimalUtils.toWeight(
+                BigDecimalUtils.safeDivide(BigDecimal.ONE, BigDecimal.valueOf(weights.size()), BigDecimalUtils.CALC_SCALE));
+        Map<String, BigDecimal> equal = new LinkedHashMap<>();
+        weights.keySet().forEach(t -> equal.put(t, eq));
+        return equal;
     }
 
     private void buildRecommendations(DiversificationResult result,
                                       Map<String, BigDecimal> sectorWeights,
                                       BigDecimal hhi,
-                                      Portfolio portfolio) {
+                                      Portfolio portfolio,
+                                      Map<String, BigDecimal> suggested) {
 
         if ("HIGH".equals(result.getConcentrationLevel())) {
-            result.addRecommendation(RebalanceRecommendation.critical(
-                    "High concentration (HHI=" + hhi + "). Reduce weight of largest sectors.",
-                    null, hhi, HHI_HIGH
+            result.addRecommendation(RebalanceRecommendation.withSuggestedWeights(
+                    RebalanceRecommendation.Severity.CRITICAL,
+                    "High concentration (HHI=" + hhi + ", effective sectors="
+                            + result.getEffectiveSectorCount() + "). Reduce weight of largest sectors.",
+                    null, hhi, ConcentrationCalculator.HHI_HIGH, suggested
             ));
         } else if ("MEDIUM".equals(result.getConcentrationLevel())) {
-            result.addRecommendation(RebalanceRecommendation.warning(
+            result.addRecommendation(RebalanceRecommendation.withSuggestedWeights(
+                    RebalanceRecommendation.Severity.WARNING,
                     "Medium concentration (HHI=" + hhi + "). Monitor largest sectors.",
-                    null, hhi, HHI_HIGH
+                    null, hhi, ConcentrationCalculator.HHI_HIGH, suggested
             ));
         } else {
             result.addRecommendation(RebalanceRecommendation.info(
-                    "Good sector diversification (HHI=" + hhi + ")."
+                    "Good sector diversification (HHI=" + hhi
+                            + ", effective sectors=" + result.getEffectiveSectorCount() + ")."
             ));
         }
 
         for (Map.Entry<String, BigDecimal> e : sectorWeights.entrySet()) {
             if (e.getValue().compareTo(MAX_SECTOR_WEIGHT) > 0) {
-                result.addRecommendation(RebalanceRecommendation.warning(
+                result.addRecommendation(RebalanceRecommendation.withSuggestedWeights(
+                        RebalanceRecommendation.Severity.WARNING,
                         String.format("Sector %s is %.1f%% of portfolio. Suggested max is %.0f%%.",
                                 e.getKey(),
                                 PercentageUtils.fractionToPercentDouble(e.getValue()),
                                 PercentageUtils.fractionToPercentDouble(MAX_SECTOR_WEIGHT)),
                         e.getKey(),
                         e.getValue(),
-                        MAX_SECTOR_WEIGHT
+                        MAX_SECTOR_WEIGHT,
+                        suggested
                 ));
             }
         }
@@ -156,17 +244,34 @@ public class PortfolioAnalyzer {
                     null, total, BigDecimal.ONE
             ));
         }
+
+        BigDecimal top1 = result.getTop1Share();
+        if (top1 != null && top1.compareTo(MAX_SECTOR_WEIGHT) > 0) {
+            result.addRecommendation(RebalanceRecommendation.warning(
+                    "Top-1 sector share = " + PercentageUtils.fractionToPercent(top1) + "%.",
+                    null, top1, MAX_SECTOR_WEIGHT
+            ));
+        }
     }
 
     private String buildSummaryText(DiversificationResult result) {
         StringBuilder sb = new StringBuilder();
         sb.append("HHI: ").append(result.getHhi())
-                .append(" (").append(result.getConcentrationLevel()).append(")\n\n");
+                .append(" (").append(result.getConcentrationLevel()).append(")")
+                .append(", effective sectors: ").append(result.getEffectiveSectorCount())
+                .append(", top-1: ").append(PercentageUtils.fractionToPercent(result.getTop1Share())).append("%")
+                .append(", top-3: ").append(PercentageUtils.fractionToPercent(result.getTop3Share())).append("%\n\n");
 
         sb.append("Sector allocation:\n");
         for (SectorAllocation a : result.getSectorAllocations()) {
             sb.append(String.format("  - %s: %s%% (%d pos.)\n",
                     a.getSector(), a.getWeightPercent(), a.getPositionCount()));
+        }
+
+        if (result.getSuggestedWeights() != null && !result.getSuggestedWeights().isEmpty()) {
+            sb.append("\nSuggested weights:\n");
+            result.getSuggestedWeights().forEach((t, w) ->
+                    sb.append(String.format("  - %s: %s%%\n", t, PercentageUtils.fractionToPercent(w))));
         }
 
         sb.append("\nRecommendations:\n");
@@ -176,5 +281,4 @@ public class PortfolioAnalyzer {
         }
         return sb.toString();
     }
-
 }

@@ -3,6 +3,7 @@ package com.example.investcalc.service.diversification;
 import com.example.investcalc.client.marketdata.MarketDataProvider;
 import com.example.investcalc.repository.TickerMetadataRepository;
 import com.example.investcalc.repository.entity.TickerMetadata;
+import com.example.investcalc.service.diversification.model.Sector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,19 +32,17 @@ public class SectorMappingService {
 
         Optional<TickerMetadata> fromDb = tickerMetadataRepository.findByTickerIgnoreCase(key);
 
-        // Берём из БД только если сектор нормальный
         if (fromDb.isPresent()) {
             String sector = fromDb.get().getSector();
             if (sector != null && !sector.isBlank() && !"UNKNOWN".equalsIgnoreCase(sector)) {
-                return sector.toUpperCase();
+                return Sector.fromCode(sector).code();
             }
         }
 
-        //Fallback? Тогда API / Mock
         Optional<TickerMetadata> fromApi = marketDataProvider.getTickerMetadata(key);
         if (fromApi.isPresent()) {
             TickerMetadata meta = fromApi.get();
-            String sector = meta.getSector() != null ? meta.getSector().toUpperCase() : "UNKNOWN";
+            String sector = Sector.fromCode(meta.getSector()).code();
 
             TickerMetadata toSave = fromDb.orElseGet(() -> {
                 TickerMetadata m = new TickerMetadata();
@@ -63,6 +62,6 @@ public class SectorMappingService {
         }
 
         log.warn("Sector NOT found for {}, using UNKNOWN. Check marketdata.provider and ticker list.", key);
-        return "UNKNOWN";
+        return Sector.UNKNOWN.code();
     }
 }
