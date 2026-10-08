@@ -13,7 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Component
-@ConditionalOnProperty(name = "marketdata.provider", havingValue = "mock", matchIfMissing = true)
+@ConditionalOnProperty(name = "marketdata.provider", havingValue = "mock")
 public class MockDataProvider implements MarketDataProvider {
 
     private static final Map<String, TickerMetadata> META = Map.of(
