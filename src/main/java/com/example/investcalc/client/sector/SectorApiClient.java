@@ -17,7 +17,6 @@ public class SectorApiClient {
     private static final Logger log = LoggerFactory.getLogger(SectorApiClient.class);
     private static final String BASE = "https://iss.moex.com/iss";
 
-    /** MOEX sector index SECID � internal sector code */
     private static final Map<String, String> INDEX_TO_SECTOR = Map.ofEntries(
             Map.entry("MOEXOG", "OIL_GAS"),
             Map.entry("MOEXFN", "FINANCE"),
@@ -40,10 +39,6 @@ public class SectorApiClient {
         this.retryConfig = retryConfig;
     }
 
-    /**
-     * Full map ticker � sector built from all known sector indices.
-     * Cached for 12h.
-     */
     @Cacheable(cacheNames = CacheConfig.SECTOR_MAP, key = "'all'")
     public Map<String, String> loadAllSectorMappings() {
         Map<String, String> result = new HashMap<>();
@@ -63,10 +58,6 @@ public class SectorApiClient {
         log.info("Total sector mappings loaded: {}", result.size());
         return Collections.unmodifiableMap(result);
     }
-
-    /**
-     * Sector for a single ticker (uses cached full map).
-     */
     public Optional<String> resolveSector(String ticker) {
         if (ticker == null || ticker.isBlank()) {
             return Optional.empty();
@@ -76,10 +67,6 @@ public class SectorApiClient {
     }
 
     private Set<String> fetchIndexConstituents(String indexSecid) {
-        // https://iss.moex.com/iss/statistics/engines/stock/markets/index/analytics/MOEXOG.json
-        // Alternative: /iss/engines/stock/markets/index/securities/{index}/analytics.json
-        // Most reliable for composition: /iss/statistics/engines/stock/markets/index/analytics/{index}.json
-        // columns include ticker / secid
 
         String url = "/statistics/engines/stock/markets/index/analytics/" + indexSecid + ".json"
                 + "?iss.meta=off&iss.only=analytics&limit=100";
@@ -99,7 +86,6 @@ public class SectorApiClient {
         JsonNode data = analytics.path("data");
 
         if (columns.isMissingNode() || data.isMissingNode() || !data.isArray()) {
-            // fallback: securities list of the index
             return fetchIndexSecuritiesFallback(indexSecid);
         }
 

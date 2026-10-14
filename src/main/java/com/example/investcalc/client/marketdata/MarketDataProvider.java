@@ -9,15 +9,11 @@ import java.util.Optional;
 
 public interface MarketDataProvider {
 
-    /**
-     Historical daily candles
-     **/
+    //свечи
     List<Candle> getCandles(String ticker, LocalDate from, LocalDate to);
 
     Optional<TickerMetadata> getTickerMetadata(String ticker);
 
-    /**
-     Tiker search for autocomplete
-     **/
+    //тикеры
     List<TickerMetadata> searchTickers(String query);
 }

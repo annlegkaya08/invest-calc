@@ -15,10 +15,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import java.util.List;
 
-/**
- * Превращает любые исключения контроллеров в {@link ErrorResponse}.
- * Внутренние сообщения неожиданных ошибок клиенту не отдаются, они пишутся только в лог.
- */
+//любые исключения контроллеров в {@link ErrorResponse}
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -35,7 +32,7 @@ public class GlobalExceptionHandler {
         return build(code.getHttpStatus(), code.name(), ex.getMessage(), req, ex.getDetails());
     }
 
-    /** Ошибки @Valid на теле запроса. */
+    //Ошибки @Valid на теле запроса
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleBodyValidation(MethodArgumentNotValidException ex,
                                                               HttpServletRequest req) {
@@ -45,7 +42,7 @@ public class GlobalExceptionHandler {
         return build(400, ApiErrorCode.VALIDATION_ERROR.name(), "Ошибка валидации запроса", req, details);
     }
 
-    /** Ошибки валидации параметров метода (@RequestParam, @PathVariable с ограничениями). */
+    //Ошибки валидации параметров метода (@RequestParam, @PathVariable с ограничениями)
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException ex, HttpServletRequest req) {
         List<String> details = ex.getConstraintViolations().stream()
@@ -54,7 +51,7 @@ public class GlobalExceptionHandler {
         return build(400, ApiErrorCode.VALIDATION_ERROR.name(), "Ошибка валидации запроса", req, details);
     }
 
-    /** Битый JSON, неверные типы полей, пустое тело. */
+    //Битый JSON, неверные типы полей, пустое тело
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
                                                           HttpServletRequest req) {
@@ -70,11 +67,6 @@ public class GlobalExceptionHandler {
                 "Неверное значение параметра '" + ex.getName() + "'", req, List.of());
     }
 
-    /**
-     * Всё остальное. Ошибки самого Spring MVC (404, 405, 415, отсутствующий параметр и т. д.)
-     * реализуют {@link org.springframework.web.ErrorResponse} и несут свой статус, их отдаём как есть.
-     * Остальное считаем внутренней ошибкой (500) без раскрытия деталей.
-     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAny(Exception ex, HttpServletRequest req) {
         if (ex instanceof org.springframework.web.ErrorResponse springError) {

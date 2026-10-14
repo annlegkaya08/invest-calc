@@ -14,9 +14,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.function.Supplier;
 
-/**
- * Timeouts for RestClient and a simple retry helper used by MOEX / Sector clients.
- */
 @Configuration
 public class RetryConfig {
 
@@ -49,9 +46,6 @@ public class RetryConfig {
         return RestClient.builder().requestFactory(moexRequestFactory);
     }
 
-    /**
-     * Execute supplier with retries on RestClientException / IO-related failures.
-     */
     public <T> T executeWithRetry(Supplier<T> action, String context) {
         int attempt = 0;
         RuntimeException last = null;

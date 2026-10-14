@@ -41,7 +41,7 @@ public class MockDataProvider implements MarketDataProvider {
         LocalDate current = from;
 
         while (!current.isAfter(to)) {
-            // пропускаем выходные
+            //пропускаем выходные
             if (current.getDayOfWeek().getValue() < 6) {
                 double change = ThreadLocalRandom.current().nextDouble(-0.025, 0.025);
                 BigDecimal open = price;

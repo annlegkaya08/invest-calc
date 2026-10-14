@@ -9,10 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * In-memory cache for ticker metadata (and optionally sectors).
- * TTL keeps sector mappings reasonably fresh without hammering MOEX.
- */
+//кэш для метадаты тикеров
 @Configuration
 @EnableCaching
 public class CacheConfig {

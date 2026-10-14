@@ -4,8 +4,6 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Единый формат ошибки API.
- *
  * @param timestamp момент ошибки
  * @param status    HTTP-статус
  * @param code      машиночитаемый код ({@code ApiErrorCode} либо {@code HTTP_<status>} для ошибок фреймворка)

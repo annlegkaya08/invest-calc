@@ -1,9 +1,6 @@
 package com.example.investcalc.api.exception;
 
-/**
- * Машиночитаемые коды ошибок API. Клиент ориентируется на {@code code}, а не на текст сообщения.
- * HTTP-статус хранится числом, чтобы доменные исключения не зависели от Spring.
- */
+//Машиночитаемые коды ошибок API
 public enum ApiErrorCode {
 
     VALIDATION_ERROR(400),

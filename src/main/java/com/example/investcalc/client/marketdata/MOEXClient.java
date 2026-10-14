@@ -17,10 +17,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-/**
- * Raw MOEX ISS client.
- * Candle pagination: start += 500 until a short page is returned.
- */
 @Component
 @ConditionalOnProperty(name = "marketdata.provider", havingValue = "moex", matchIfMissing = true)
 public class MOEXClient implements MarketDataProvider {
@@ -28,7 +24,6 @@ public class MOEXClient implements MarketDataProvider {
     private static final Logger log = LoggerFactory.getLogger(MOEXClient.class);
     private static final String BASE = "https://iss.moex.com/iss";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE;
-    /** MOEX ISS max page size for candles */
     private static final int PAGE_SIZE = 500;
 
     private final RestClient restClient;
@@ -77,7 +72,6 @@ public class MOEXClient implements MarketDataProvider {
             }
         }
 
-        // sort by date ascending, drop duplicates if any
         all.sort(Comparator.comparing(Candle::getDate));
         return all;
     }
@@ -113,7 +107,6 @@ public class MOEXClient implements MarketDataProvider {
                 }
                 result.add(new Candle(ticker, date, open, high, low, close, volume));
             } catch (Exception ignored) {
-                // skip broken row
             }
         }
         return result;
@@ -167,7 +160,6 @@ public class MOEXClient implements MarketDataProvider {
         meta.setCurrency(fields.getOrDefault("FACEUNIT", "RUB"));
         meta.setBoard("TQBR");
 
-        // Prefer sector from index composition; fall back to description field
         String sector = sectorApiClient.resolveSector(ticker)
                 .orElseGet(() -> mapSector(fields.getOrDefault("SECTOR", "UNKNOWN")));
         meta.setSector(sector);

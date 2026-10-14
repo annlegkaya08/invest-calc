@@ -16,7 +16,6 @@ public class RebalanceRecommendation {
     private final String sector;
     private final BigDecimal currentWeight;
     private final BigDecimal suggestedMaxWeight;
-    /** Ticker → suggested portfolio weight after rebalance (fractions of 1). */
     private final Map<String, BigDecimal> suggestedWeights;
 
     public RebalanceRecommendation(Severity severity,
